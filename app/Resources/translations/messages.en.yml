@@ -1,0 +1,7 @@
+link_type:
+    requires: requires
+    devRequires: requires (dev)
+    suggests: suggests
+    provides: provides
+    conflicts: conflicts
+    replaces: replaces

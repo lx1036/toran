@@ -1,0 +1,32 @@
+{% extends '::layout.html.twig' %}
+
+{% block content %}
+    <h2>
+        Private Repositories
+        <span class="docs-hint"><a href="{{ path('docs', {page: 'usage.md'}) }}#private"></a></span>
+    </h2>
+
+    <ul class="repositories">
+    {% for repo in repos %}
+        <li>
+            {% spaceless %}
+            <span class="opts">
+                <a class="button" href="{{ path('toran_proxy_repo_edit', {id: repo.id, digest: repo.digest}) }}">edit</a>
+                <form action="{{ path('toran_proxy_repo_update', {id: repo.id, digest: repo.digest}) }}" class="js-ajax js-update" method="POST">
+                    <input type="hidden" name="_method" value="PUT">
+                    <button class="button button-update" type="submit">update</button>
+                </form>
+                <form action="{{ path('toran_proxy_repo_delete', {id: repo.id, digest: repo.digest}) }}" method="POST">
+                    <input type="hidden" name="_method" value="DELETE">
+                    <button class="button button-delete js-confirm" type="submit">delete</button>
+                </form>
+            </span>
+            <h3><a href="{{ path('toran_proxy_repo_view', {id: repo.id, digest: repo.digest}) }}">{{ repo.names|join(', ')|default('(unknown package, invalid repo config?)') }}</a></h3>
+            <pre class="config">{{ repo.cleanConfig|yaml_encode(1) }}</pre>
+            {% endspaceless %}
+        </li>
+    {% endfor %}
+    </ul>
+
+    <a class="button" href="{{ path('toran_proxy_repo_create') }}">Add Repository</a>
+{% endblock %}

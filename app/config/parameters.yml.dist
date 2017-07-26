@@ -1,0 +1,21 @@
+parameters:
+    # this secret should be changed to something unique and random if possible
+    secret:         ThisTokenIsNotSoSecret-Change-It
+
+    # http or https depending on your hosting setup
+    toran_scheme:   http
+
+    # in case you use non-standard ports you can update them here
+    toran_http_port: 80
+    toran_https_port: 443
+
+    # the hostname toran is hosted at
+    toran_host:     example.org
+
+    # e.g. /foo if toran is hosted in a sub-directory, or leave it empty if it is on its own domain, no trailing slash!
+    toran_base_url:
+
+    # in you run Toran Proxy in a virtual machine and have issues saving due to CSRF token,
+    # this is because sessions can not be written. In which case you can uncomment the line
+    # below and configure the sessions to be written somewhere else like /tmp
+    #session_save_path: /tmp/sessions

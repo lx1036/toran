@@ -1,0 +1,118 @@
+{% extends '::layout.html.twig' %}
+
+{% block content %}
+    <div class="repositories repository">
+        <div class="actions">
+            {% spaceless %}
+            <span class="opts">
+                <a class="button" href="{{ path('toran_proxy_repo_edit', {id: repo.id, digest: repo.digest}) }}">edit</a>
+                <form action="{{ path('toran_proxy_repo_update', {id: repo.id, digest: repo.digest}) }}" class="js-ajax js-update" method="POST">
+                    <input type="hidden" name="_method" value="PUT">
+                    <button class="button button-update" type="submit">update</button>
+                </form>
+                <form action="{{ path('toran_proxy_repo_delete', {id: repo.id, digest: repo.digest}) }}" method="POST">
+                    <input type="hidden" name="_method" value="DELETE">
+                    <button class="button button-delete js-confirm" type="submit">delete</button>
+                </form>
+            </span>
+            {% endspaceless %}
+        </div>
+        {% if error|default('') == 'no_data' %}
+            <p>This package has no data yet and still needs to be updated. An update has been started automatically.</p>
+        {% endif %}
+
+        {% set lastName = '' %}
+        {% for package in packages %}
+            {% if lastName != package.name %}
+                {% if lastName != '' %}
+                    </div>
+                {% endif %}
+                <div class="package-details">
+                    <h1>{{ package.prettyName }}</h1>
+                    <p class="description">{{ package.description }}</p>
+                    <p class="props">
+                        {% if package.keywords %}
+                            <span>Tags:</span> {{ package.keywords|join(', ') }}<br />
+                        {% endif %}
+                        {% if package.homepage %}
+                            <span>Homepage:</span> <a href="{{ package.homepage }}">{{ package.homepage|replace({'http://': ''}) }}</a><br />
+                        {% endif %}
+                        {% set repoUrl = package.sourceUrl|replace({'git://github.com/':'https://github.com/', 'git@github.com:':'https://github.com/'}) %}
+                        <span>Canonical:</span> <a href="{{ repoUrl }}">{{ repoUrl }}</a><br />
+                        {% if package.support.source is defined %}
+                            <span>Source:</span> <a href="{{ package.support.source }}">{{ package.support.source }}</a><br />
+                        {% endif %}
+                        {% if package.support.issues is defined %}
+                            <span>Issues:</span> <a href="{{ package.support.issues }}">{{ package.support.issues }}</a><br />
+                        {% endif %}
+                        {% if package.support.irc is defined %}
+                            <span>IRC:</span> <a href="{{ package.support.irc }}">{{ package.support.irc }}</a><br />
+                        {% endif %}
+                        {% if package.support.forum is defined %}
+                            <span>Forum:</span> <a href="{{ package.support.forum }}">{{ package.support.forum }}</a><br />
+                        {% endif %}
+                        {% if package.support.wiki is defined %}
+                            <span>Wiki:</span> <a href="{{ package.support.wiki }}">{{ package.support.wiki }}</a><br />
+                        {% endif %}
+                        {% if package.license %}
+                            <span>License:</span> {{ package.license ? package.license|join(', ') : 'Unknown' }}<br />
+                        {% endif %}
+                    </p>
+                    {% if package.authors and package.authors|length > 0 %}
+                        <p class="authors">Author{{ package.authors|length > 1 ? 's' : '' }}:</p>
+                        <ul>
+                            {% for author in package.authors %}
+                                <li>
+                                    {%- if author.homepage is defined and author.homepage is not empty -%}
+                                        <a href="{{ author.homepage }}">{{ author.name }}</a>
+                                    {%- else -%}
+                                        {{ author.name }}
+                                    {%- endif -%}
+                                    {% if author.email %} &lt;<a href="mailto:{{ author.email }}">{{ author.email }}</a>&gt;{% endif -%}
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% endif %}
+            {% endif %}
+            {% set lastName = package.name %}
+
+                    <div class="version">
+                        <h2><a class="anchor" href="#ver-{{ package.version }}" id="ver-{{ package.version }}">
+                                {{- package.prettyVersion -}}
+                                {% if package.extra['branch-alias'][package.version] is defined %}
+                                    {{- ' / ' ~ package.extra['branch-alias'][package.version] -}}
+                                {% endif -%}
+                            </a>
+                            <span class="source-reference">reference: {{ package.sourceReference }}</span>
+                            <span class="release-date">{{ package.releaseDate|date("Y-m-d H:i") }} UTC</span>
+                        </h2>
+
+                        <div class="package-links">
+                            {% for type in ["requires", "devRequires", "suggests", "provides", "conflicts", "replaces"] %}
+                                <div class="links {{ type }}s">
+                                    <h3>{{ ('link_type.' ~ type)|trans }}</h3>
+                                    {% if attribute(package, type)|length %}
+                                        <ul>
+                                            {%- for name, version in attribute(package, type) -%}
+                                                {% if type != 'suggests' %}{% set version = version.prettyConstraint %}{% endif %}
+                                                <li>{{ name }}: {{ version == 'self.version' ? package.version : version }}</li>
+                                            {%- endfor -%}
+                                        </ul>
+                                    {% else %}
+                                        <p class="none">None</p>
+                                    {% endif %}
+                                </div>
+                            {% endfor %}
+                        </div>
+                        <div class="clearfix"></div>
+                    </div>
+        {% endfor %}
+                </div>
+    </div>
+{% endblock %}
+
+{% block post_js %}
+    {% if error|default('') == 'no_data' %}
+        $('.js-update').submit();
+    {% endif %}
+{% endblock %}
