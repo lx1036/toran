@@ -1,5 +1,6 @@
 <?php
 
+declare(strict_types=1);
 /*
  * This file is part of the Toran package.
  *
@@ -11,14 +12,14 @@
 
 namespace Toran\ProxyBundle\Service;
 
-use Toran\ProxyBundle\Model\Repository;
 use Symfony\Component\Yaml\Yaml;
+use Toran\ProxyBundle\Model\Repository;
 
 class Configuration
 {
     private $file;
-    private $config = array();
-    private $dirty = array();
+    private $config = [];
+    private $dirty  = [];
 
     public function __construct($file, $cacheDir)
     {
@@ -27,57 +28,13 @@ class Configuration
         $this->file = $file;
     }
 
-    private function loadConfig($file, $cacheDir = null)
-    {
-        $config = array();
-        if ($cacheDir !== null) {
-            $configCachePath = $cacheDir . '/toran-config-cache.php';
-            if (file_exists($configCachePath)) {
-                $config = include $configCachePath;
-            }
-        }
-
-//        var_dump($file);
-
-        if (file_exists($file) && (empty($config['cache-hash']) || hash_file('sha1', $file) !== $config['cache-hash'])) {
-            $config = Yaml::parse(file_get_contents($file));
-            if ($cacheDir !== null) {
-                $config['cache-hash'] = hash_file('sha1', $file);
-                file_put_contents($configCachePath, '<?php return '.var_export($config, true).';');
-            }
-        }
-
-        if (!empty($config['repositories'])) {
-            foreach ($config['repositories'] as $idx => $repo) {
-                $config['repositories'][$idx] = Repository::fromArray($repo, $idx);
-            }
-        } else {
-            $config['repositories'] = array();
-        }
-        if (!isset($config['public_packages'])) {
-            $config['public_packages'] = array();
-        }
-        if (!isset($config['public_repositories'])) {
-            $config['public_repositories'] = array();
-        }
-
-        if (!empty($config['packagist_packages'])) {
-            foreach ($config['packagist_packages'] as $package) {
-                $config['public_packages'][$package] = 'packagist.org';
-            }
-            unset($config['packagist_packages']);
-        }
-
-        return $config;
-    }
-
     public function getPublicRepositories()
     {
         $repos = array_filter($this->config['public_repositories'], function ($repo) {
             return !empty($repo['url']);
         });
         if ($this->config['packagist_sync'] === 'proxy') {
-            $repos[] = array('url' => 'https://packagist.org', 'origin' => 'packagist.org');
+            $repos[] = ['url' => 'https://packagist.org', 'origin' => 'packagist.org'];
         }
 
         return $repos;
@@ -85,21 +42,21 @@ class Configuration
 
     public function setPublicRepositories($repositories)
     {
-        $repos = array();
+        $repos = [];
         foreach (preg_split('{(\r?\n)+}', trim($repositories)) as $repo) {
             if (!$repo) {
                 continue;
             }
 
-            $repos[] = array(
-                'url' => str_replace('/packages.json', '', $repo),
+            $repos[] = [
+                'url'    => str_replace('/packages.json', '', $repo),
                 'origin' => parse_url($repo, PHP_URL_HOST),
-            );
+            ];
         }
 
         if (!isset($this->config['public_repositories']) || $repos !== $this->config['public_repositories']) {
             $this->config['public_repositories'] = $repos;
-            $this->dirty[] = 'public_repositories';
+            $this->dirty[]                       = 'public_repositories';
         }
     }
 
@@ -114,7 +71,7 @@ class Configuration
             return $this->config['repositories'][$id];
         }
 
-        throw new \LogicException('Requested repository id '.$id.' with invalid digest '.$digest);
+        throw new \LogicException('Requested repository id ' . $id . ' with invalid digest ' . $digest);
     }
 
     public function addRepository(Repository $newRepo)
@@ -145,14 +102,14 @@ class Configuration
     {
         if (!isset($repo->config['toran_package_names']) || $repo->config['toran_package_names'] !== $names) {
             $repo->config['toran_package_names'] = $names;
-            $this->dirty[] = 'repositories';
+            $this->dirty[]                       = 'repositories';
         }
     }
 
     public function updateRepositoryConfig(Repository $repo, array $config)
     {
         if ($repo->config !== $config) {
-            $repo->config = $config;
+            $repo->config  = $config;
             $this->dirty[] = 'repositories';
         }
     }
@@ -187,7 +144,7 @@ class Configuration
     {
         if (!isset($this->config[$key]) || $this->config[$key] !== $val) {
             $this->config[$key] = $val;
-            $this->dirty[] = $key;
+            $this->dirty[]      = $key;
         }
     }
 
@@ -195,7 +152,7 @@ class Configuration
     {
         if (!isset($this->config['public_packages'][$package]) || $this->config['public_packages'][$package] !== $origin) {
             $this->config['public_packages'][$package] = $origin;
-            $this->dirty[] = 'public_packages';
+            $this->dirty[]                             = 'public_packages';
         }
     }
 
@@ -209,7 +166,7 @@ class Configuration
 
     public function getPrivatePackageNames()
     {
-        $names = array();
+        $names = [];
         foreach ($this->getRepositories() as $repo) {
             foreach ($repo->getNames() as $name) {
                 $names[strtolower($name)] = true;
@@ -249,7 +206,51 @@ class Configuration
             throw new \RuntimeException('Unable to write the config into ' . $this->file);
         }
 
-        $this->dirty = array();
+        $this->dirty = [];
+    }
+
+    private function loadConfig($file, $cacheDir = null)
+    {
+        $config = [];
+        if ($cacheDir !== null) {
+            $configCachePath = $cacheDir . '/toran-config-cache.php';
+            if (file_exists($configCachePath)) {
+                $config = include $configCachePath;
+            }
+        }
+
+        //        var_dump($file);
+
+        if (file_exists($file) && (empty($config['cache-hash']) || hash_file('sha1', $file) !== $config['cache-hash'])) {
+            $config = Yaml::parse(file_get_contents($file));
+            if ($cacheDir !== null) {
+                $config['cache-hash'] = hash_file('sha1', $file);
+                file_put_contents($configCachePath, '<?php return ' . var_export($config, true) . ';');
+            }
+        }
+
+        if (!empty($config['repositories'])) {
+            foreach ($config['repositories'] as $idx => $repo) {
+                $config['repositories'][$idx] = Repository::fromArray($repo, $idx);
+            }
+        } else {
+            $config['repositories'] = [];
+        }
+        if (!isset($config['public_packages'])) {
+            $config['public_packages'] = [];
+        }
+        if (!isset($config['public_repositories'])) {
+            $config['public_repositories'] = [];
+        }
+
+        if (!empty($config['packagist_packages'])) {
+            foreach ($config['packagist_packages'] as $package) {
+                $config['public_packages'][$package] = 'packagist.org';
+            }
+            unset($config['packagist_packages']);
+        }
+
+        return $config;
     }
 
     private function reindexRepositories()

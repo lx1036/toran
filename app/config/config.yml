@@ -39,3 +39,4 @@ parameters:
     router.request_context.scheme: %toran_scheme%
     router.request_context.base_url: %toran_base_url%
     toran_version: 1.5.3
+    locale: en

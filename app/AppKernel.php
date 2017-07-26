@@ -45,6 +45,21 @@ class AppKernel extends Kernel
         return $bundles;
     }
 
+    public function getRootDir()
+    {
+        return __DIR__;
+    }
+
+    public function getCacheDir()
+    {
+        return dirname(__DIR__).'/var/cache/'.$this->getEnvironment();
+    }
+
+    public function getLogDir()
+    {
+        return dirname(__DIR__).'/var/logs';
+    }
+
     public function registerContainerConfiguration(LoaderInterface $loader)
     {
         $loader->load(__DIR__.'/config/config_'.$this->getEnvironment().'.yml');
@@ -56,6 +71,7 @@ class AppKernel extends Kernel
 
         putenv('COMPOSER_HOME='.$this->getContainer()->getParameter('composer_home'));
         putenv('COMPOSER_CACHE_DIR='.$this->getContainer()->getParameter('composer_cache_dir'));
+
         if (!$this->getContainer()->getParameter('toran_host')) {
             die('Toran requires that the toran_host parameter is configured in app/config/parameters.yml
 Do not forget to delete app/cache/prod/* after changing the config for the changes to take effect');

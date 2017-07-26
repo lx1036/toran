@@ -1,5 +1,6 @@
 <?php
 
+declare(strict_types=1);
 /*
  * This file is part of the Toran package.
  *
@@ -11,13 +12,12 @@
 
 namespace Toran\ProxyBundle\Controller;
 
+use Composer\Factory;
+use Composer\IO\NullIO;
+use Composer\Json\JsonFile;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Composer\Util\RemoteFilesystem;
-use Composer\IO\NullIO;
-use Composer\Json\JsonFile;
-use Composer\Factory;
 
 class PackagistController extends Controller
 {
@@ -26,31 +26,31 @@ class PackagistController extends Controller
         $syncedPackages = $this->get('config')->getSyncedPackages();
         ksort($syncedPackages);
 
-        return $this->render('ToranProxyBundle:Packagist:index.html.twig', array(
-            'packages' => $syncedPackages,
-            'is_enabled' => 'proxy' === $this->get('config')->get('packagist_sync')
-        ));
+        return $this->render('ToranProxyBundle:Packagist:index.html.twig', [
+            'packages'   => $syncedPackages,
+            'is_enabled' => 'proxy' === $this->get('config')->get('packagist_sync'),
+        ]);
     }
 
     public function addAction(Request $req)
     {
-        $data = array('packages' => '', 'origin' => 'packagist.org');
-        $origins = array();
+        $data    = ['packages' => '', 'origin' => 'packagist.org'];
+        $origins = [];
         foreach ($this->get('config')->getPublicRepositories() as $repo) {
             $origins[$repo['origin']] = $repo['origin'];
         }
 
         $form = $this->createFormBuilder($data)
-            ->add('packages', 'Symfony\Component\Form\Extension\Core\Type\TextareaType', array(
+            ->add('packages', 'Symfony\Component\Form\Extension\Core\Type\TextareaType', [
                 'required' => false,
-                'label' => 'Packages to start synchronizing (one per line)'
-            ))
-            ->add('origin', 'Symfony\Component\Form\Extension\Core\Type\ChoiceType', array(
-                'required' => true,
-                'choices' => $origins,
+                'label'    => 'Packages to start synchronizing (one per line)',
+            ])
+            ->add('origin', 'Symfony\Component\Form\Extension\Core\Type\ChoiceType', [
+                'required'          => true,
+                'choices'           => $origins,
                 'choices_as_values' => true,
-                'label' => 'Which repository do you want to sync those packages from?',
-            ))
+                'label'             => 'Which repository do you want to sync those packages from?',
+            ])
             ->add('Add', 'Symfony\Component\Form\Extension\Core\Type\SubmitType')
             ->getForm();
 
@@ -58,15 +58,15 @@ class PackagistController extends Controller
             $form->handleRequest($req);
             $data = $form->getData();
             if ($form->isValid()) {
-                $skipped = array();
+                $skipped = [];
                 if (trim($data['packages'])) {
-                    $io = new NullIO();
+                    $io             = new NullIO();
                     $composerConfig = Factory::createConfig();
                     $io->loadConfiguration($composerConfig);
                     $rfs = Factory::createRemoteFilesystem($io, $composerConfig);
 
                     $config = $this->get('config');
-                    $repos = $config->getPublicRepositories();
+                    $repos  = $config->getPublicRepositories();
                     foreach ($repos as $repo) {
                         if ($repo['origin'] === $data['origin']) {
                             break;
@@ -74,13 +74,13 @@ class PackagistController extends Controller
                     }
 
                     if ($repo['origin'] === 'packagist.org') {
-                        $listUrl = 'https://packagist.org/packages/list.json';
+                        $listUrl       = 'https://packagist.org/packages/list.json';
                         $validPackages = JsonFile::parseJson($rfs->getContents('packagist.org', $listUrl, false), $listUrl);
                         $verifyPackage = function ($package) use ($validPackages) {
                             return in_array($package, $validPackages['packageNames'], true);
                         };
                     } else {
-                        $proxy = $this->get('proxy_factory')->createProxy($repo, $io, $composerConfig);
+                        $proxy         = $this->get('proxy_factory')->createProxy($repo, $io, $composerConfig);
                         $verifyPackage = function ($package) use ($proxy) {
                             return false !== $proxy->getProviderFile($package);
                         };
@@ -97,7 +97,7 @@ class PackagistController extends Controller
                 }
 
                 if ($skipped) {
-                    $this->get('session')->getFlashBag()->add('warning', 'The following packages were not found and were skipped: '.implode(', ', $skipped));
+                    $this->get('session')->getFlashBag()->add('warning', 'The following packages were not found and were skipped: ' . implode(', ', $skipped));
                 } else {
                     $this->get('session')->getFlashBag()->add('success', 'Packages added successfully');
                 }
@@ -106,12 +106,12 @@ class PackagistController extends Controller
             }
         }
 
-        return $this->render('ToranProxyBundle:Packagist:add.html.twig', array('form' => $form->createView()));
+        return $this->render('ToranProxyBundle:Packagist:add.html.twig', ['form' => $form->createView()]);
     }
 
     public function deleteAction(Request $req, $package)
     {
-        $repos = $this->get('config')->getPublicRepositories();
+        $repos    = $this->get('config')->getPublicRepositories();
         $packages = $this->get('config')->getSyncedPackages();
 
         foreach ($repos as $repo) {
@@ -122,12 +122,12 @@ class PackagistController extends Controller
             }
         }
 
-        $this->get('session')->getFlashBag()->add('success', $package.' successfully removed');
+        $this->get('session')->getFlashBag()->add('success', $package . ' successfully removed');
 
         return $this->redirect($this->generateUrl('toran_proxy_packagist_index'));
     }
 
-    public function render($view, array $parameters = array(), Response $response = null)
+    public function render($view, array $parameters = [], Response $response = null)
     {
         if (!isset($parameters['page'])) {
             $parameters['page'] = 'packagist';

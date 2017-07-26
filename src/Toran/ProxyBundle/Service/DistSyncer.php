@@ -1,5 +1,6 @@
 <?php
 
+declare(strict_types=1);
 /*
  * This file is part of the Toran package.
  *
@@ -11,21 +12,16 @@
 
 namespace Toran\ProxyBundle\Service;
 
-use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
-use Symfony\Component\Console\Output\OutputInterface;
-use Composer\Package\AliasPackage;
-use Composer\Package\PackageInterface;
-use Composer\Downloader\FileDownloader;
-use Composer\Util\RemoteFilesystem;
-use Composer\Util\ProcessExecutor;
-use Composer\Util\Filesystem;
-use Composer\Util\ComposerMirror;
-use Composer\Factory;
 use Composer\Config as ComposerConfig;
-use Composer\IO\IOInterface;
+use Composer\Downloader\FileDownloader;
+use Composer\Factory;
 use Composer\IO\ConsoleIO;
+use Composer\IO\IOInterface;
+use Composer\Package\AliasPackage;
 use Composer\Package\Archiver\ArchiveManager;
+use Composer\Package\PackageInterface;
+use Composer\Util\ComposerMirror;
+use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 
 class DistSyncer
 {
@@ -49,7 +45,7 @@ class DistSyncer
         $archiveManager = $factory->createArchiveManager($config);
         $archiveManager->setOverwriteFiles(false);
 
-        $packagesByName = array();
+        $packagesByName = [];
         foreach ($packages as $package) {
             $packagesByName[$package->getName()][] = $package;
         }
@@ -95,16 +91,16 @@ class DistSyncer
         if (!file_exists($cacheFile)) {
             if ($url = $package->getDistUrl()) {
                 try {
-                    $path = $downloader->download($package, $targetDir.'/tempDownload');
+                    $path = $downloader->download($package, $targetDir . '/tempDownload');
                     rename($path, $cacheFile);
-                    rmdir($targetDir.'/tempDownload');
+                    rmdir($targetDir . '/tempDownload');
                     // TODO enable if it ever works
                     // $package->setDistSha1Checksum(hash_file('sha1', $cacheFile));
                     $io->write(sprintf("<info>Downloaded existing dist file for '%s'.</info>", $package));
 
                     return $cacheFile;
                 } catch (\Exception $e) {
-                    $io->write("<error>".$e->getMessage().".</error>");
+                    $io->write('<error>' . $e->getMessage() . '.</error>');
                 }
             }
 
@@ -120,7 +116,7 @@ class DistSyncer
     private function getCacheFile($targetDir, PackageInterface $package)
     {
         return ComposerMirror::processUrl(
-            $targetDir.self::DIST_FORMAT,
+            $targetDir . self::DIST_FORMAT,
             $package->getName(),
             $package->getVersion(),
             $package->getDistReference() ?: $package->getSourceReference(),

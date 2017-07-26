@@ -1,5 +1,6 @@
 <?php
 
+declare(strict_types=1);
 /*
  * This file is part of the Toran package.
  *
@@ -11,54 +12,54 @@
 
 namespace Toran\ProxyBundle\Command;
 
-use Symfony\Component\Console\Input\InputInterface;
-use Symfony\Component\Finder\Finder;
-use Symfony\Component\Console\Output\OutputInterface;
-use Symfony\Bundle\FrameworkBundle\Command\ContainerAwareCommand;
+use Composer\Factory;
+use Composer\IO\ConsoleIO;
+use Composer\Util\ErrorHandler;
 use Composer\Util\Filesystem;
 use Composer\Util\ProcessExecutor;
-use Composer\Util\ErrorHandler;
-use Composer\Util\RemoteFilesystem;
-use Composer\IO\ConsoleIO;
-use Composer\Factory;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
+use Symfony\Bundle\FrameworkBundle\Command\ContainerAwareCommand;
+use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Component\Finder\Finder;
 
 class UpdateCommand extends ContainerAwareCommand
 {
-    private $perms = array();
+    private $perms = [];
 
     protected function configure()
     {
         $this
             ->setName('toran:update')
             ->setDescription('Updates Toran to the latest available version')
-            ->setDefinition(array(
-            ))
-        ;
+            ->setDefinition([
+            ]);
     }
 
     protected function execute(InputInterface $input, OutputInterface $output)
     {
-        $io = new ConsoleIO($input, $output, $this->getHelperSet());
+        $io             = new ConsoleIO($input, $output, $this->getHelperSet());
         $composerConfig = Factory::createConfig();
         $io->loadConfiguration($composerConfig);
 
-        $baseDir = strtr(realpath($this->getContainer()->getParameter('kernel.root_dir').'/../'), '\\', '/');
-        $rfs = Factory::createRemoteFilesystem($io, $composerConfig);
+        $baseDir = strtr(realpath($this->getContainer()->getParameter('kernel.root_dir') . '/../'), '\\', '/');
+        $rfs     = Factory::createRemoteFilesystem($io, $composerConfig);
 
-        $newVersion = $rfs->getContents('toranproxy.com', 'https://toranproxy.com/version', false);
+        $newVersion     = $rfs->getContents('toranproxy.com', 'https://toranproxy.com/version', false);
         $currentVersion = $this->getContainer()->getParameter('toran_version');
 
         if ($currentVersion === $newVersion) {
             $output->writeln('Already up to date');
+
             return 0;
         }
 
-        if (!is_writable($baseDir) || !is_writable($baseDir.'/src')) {
+        if (!is_writable($baseDir) || !is_writable($baseDir . '/src')) {
             $perms = fileperms($baseDir);
             if (true !== @chmod($baseDir, $perms & 0777 | 0700)) {
-                $output->getErrorOutput()->writeln('<error>The auto-updater needs to be run with the user owning '.$baseDir.' or that directory should at least be writable by the current user</error>');
+                $output->getErrorOutput()->writeln('<error>The auto-updater needs to be run with the user owning ' . $baseDir . ' or that directory should at least be writable by the current user</error>');
+
                 return 1;
             }
             chmod($baseDir, $perms);
@@ -68,47 +69,48 @@ class UpdateCommand extends ContainerAwareCommand
         ErrorHandler::register();
 
         $exec = new ProcessExecutor($io);
-        $fs = new Filesystem($exec);
+        $fs   = new Filesystem($exec);
 
-        $baseUpdateDir = $baseDir.'/temp-update';
+        $baseUpdateDir = $baseDir . '/temp-update';
         $this->remove($baseUpdateDir);
         $this->acquirePerms($baseDir);
         mkdir($baseUpdateDir);
-        $output->writeln('Downloading new version: '.$newVersion);
-        $rfs->copy('toranproxy.com', 'https://toranproxy.com/releases/toran-proxy-v'.$newVersion.'.tgz', $baseUpdateDir.'/new.tgz', false);
+        $output->writeln('Downloading new version: ' . $newVersion);
+        $rfs->copy('toranproxy.com', 'https://toranproxy.com/releases/toran-proxy-v' . $newVersion . '.tgz', $baseUpdateDir . '/new.tgz', false);
         $output->writeln('Decompressing...');
         if (0 !== $exec->execute('tar --strip-components=1 -zxf new.tgz', $ignoredOutput, $baseUpdateDir)) {
-            $output->getErrorOutput()->writeln('<error>Could not untar the new release: '.$exec->getErrorOutput());
+            $output->getErrorOutput()->writeln('<error>Could not untar the new release: ' . $exec->getErrorOutput());
+
             return 2;
         }
-        unlink($baseUpdateDir.'/new.tgz');
+        unlink($baseUpdateDir . '/new.tgz');
 
         $output->writeln('Updating');
 
-        $paths = array(
-            $baseUpdateDir.'/bin' => $baseDir.'/bin',
-            $baseUpdateDir.'/doc' => $baseDir.'/doc',
-            $baseUpdateDir.'/src' => $baseDir.'/src',
-            $baseUpdateDir.'/vendor' => $baseDir.'/vendor',
-        );
+        $paths = [
+            $baseUpdateDir . '/bin'    => $baseDir . '/bin',
+            $baseUpdateDir . '/doc'    => $baseDir . '/doc',
+            $baseUpdateDir . '/src'    => $baseDir . '/src',
+            $baseUpdateDir . '/vendor' => $baseDir . '/vendor',
+        ];
 
         foreach ($paths as $from => $to) {
             $this->acquirePerms($to);
 
             if ($io->isVerbose()) {
-                $output->writeln('renaming '.$to.' to '.$to.'-old');
+                $output->writeln('renaming ' . $to . ' to ' . $to . '-old');
             }
-            rename($to, $to.'-old');
+            rename($to, $to . '-old');
 
             if ($io->isVerbose()) {
-                $output->writeln('renaming '.$from.' to '.$to);
+                $output->writeln('renaming ' . $from . ' to ' . $to);
             }
             rename($from, $to);
 
             if ($io->isVerbose()) {
-                $output->writeln('deleting '.$to.'-old');
+                $output->writeln('deleting ' . $to . '-old');
             }
-            $this->remove($to.'-old');
+            $this->remove($to . '-old');
         }
 
         $finder = Finder::create()
@@ -119,35 +121,35 @@ class UpdateCommand extends ContainerAwareCommand
             ->in($baseUpdateDir);
 
         foreach ($finder as $file) {
-            $target = $baseDir.'/'.$file->getBaseName();
+            $target = $baseDir . '/' . $file->getBaseName();
             $this->acquirePerms($target);
             $this->acquirePerms(dirname($target));
             if ($io->isVerbose()) {
-                $output->writeln('renaming '.$file.' to '.$target);
+                $output->writeln('renaming ' . $file . ' to ' . $target);
             }
             rename($file, $target);
         }
 
         // remove htaccess from the update dir to avoid overwriting
-        @unlink($baseUpdateDir.'/web/.htaccess');
+        @unlink($baseUpdateDir . '/web/.htaccess');
         $finder = Finder::create()
             ->ignoreVCS(false)
             ->ignoreDotFiles(false)
-            ->in(array($baseUpdateDir.'/web', $baseUpdateDir.'/app'));
+            ->in([$baseUpdateDir . '/web', $baseUpdateDir . '/app']);
 
         foreach ($finder as $file) {
-            $path = strtr($file->getPathName(), '\\', '/');
+            $path   = strtr($file->getPathName(), '\\', '/');
             $target = str_replace($baseUpdateDir, $baseDir, $path);
 
             if (is_dir($path)) {
                 if ($io->isVerbose()) {
-                    $output->writeln('ensuring '.$target.' exists');
+                    $output->writeln('ensuring ' . $target . ' exists');
                 }
                 $this->acquirePerms(dirname($target));
                 $fs->ensureDirectoryExists($target);
             } else {
                 if ($io->isVerbose()) {
-                    $output->writeln('renaming '.$path.' to '.$target);
+                    $output->writeln('renaming ' . $path . ' to ' . $target);
                 }
                 $this->acquirePerms($target);
                 $this->acquirePerms(dirname($target));
@@ -159,8 +161,8 @@ class UpdateCommand extends ContainerAwareCommand
 
         $output->writeln('Clearing application cache');
 
-        $this->remove($baseDir.'/app/cache/prod');
-        $this->remove($baseDir.'/app/cache/dev');
+        $this->remove($baseDir . '/app/cache/prod');
+        $this->remove($baseDir . '/app/cache/dev');
 
         $this->remove($baseUpdateDir);
 
@@ -178,6 +180,7 @@ class UpdateCommand extends ContainerAwareCommand
 
         if (is_file($path)) {
             unlink($path);
+
             return;
         }
 
@@ -204,7 +207,7 @@ class UpdateCommand extends ContainerAwareCommand
         if (!isset($this->perms[$path]) && file_exists($path) && !is_writable($path)) {
             $perms = fileperms($path);
             if (!@chmod($path, $perms & 0777 | 0700)) {
-                throw new \RuntimeException('Could not change permissions of '.$path);
+                throw new \RuntimeException('Could not change permissions of ' . $path);
             }
             if ($store) {
                 $this->perms[$path] = $perms;

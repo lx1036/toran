@@ -43,10 +43,10 @@
         ],
         "post-update-cmd": [
             "@symfony-scripts"
-        ]
+        ],
+        "phpcs": "vendor/bin/php-cs-fixer fix"
     },
     "config": {
-        "bin-dir": "bin",
         "sort-packages": true
     },
     "extra": {
@@ -60,6 +60,8 @@
             "file": "app/config/parameters.yml"
         },
         "branch-alias": null
+    },
+    "require-dev": {
+        "friendsofphp/php-cs-fixer": "^2.4"
     }
-
 }

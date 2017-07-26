@@ -1,5 +1,6 @@
 <?php
 
+declare(strict_types=1);
 /*
  * This file is part of the Toran package.
  *
@@ -22,12 +23,12 @@ use Symfony\Component\Config\Definition\ConfigurationInterface;
 class Configuration implements ConfigurationInterface
 {
     /**
-     * {@inheritDoc}
+     * {@inheritdoc}
      */
     public function getConfigTreeBuilder()
     {
         $treeBuilder = new TreeBuilder();
-        $rootNode = $treeBuilder->root('toran_proxy');
+        $rootNode    = $treeBuilder->root('toran_proxy');
 
         // Here you should define the parameters that are allowed to
         // configure your bundle. See the documentation linked above for

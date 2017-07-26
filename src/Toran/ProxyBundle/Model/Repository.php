@@ -1,5 +1,6 @@
 <?php
 
+declare(strict_types=1);
 /*
  * This file is part of the Toran package.
  *
@@ -31,9 +32,9 @@ class Repository
 
     public static function fromArray(array $data, $id)
     {
-        $repo = new self;
+        $repo = new self();
 
-        $repo->id = $id;
+        $repo->id   = $id;
         $repo->type = $data['type'];
         if (isset($data['url'])) {
             $repo->url = $data['url'];
@@ -50,7 +51,7 @@ class Repository
 
     public function getCleanConfig()
     {
-        $cleanConf = array();
+        $cleanConf = [];
 
         foreach ($this->config as $index => $val) {
             if (substr($index, 0, 6) !== 'toran_') {

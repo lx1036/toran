@@ -1,14 +1,16 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Toran\ProxyBundle\Twig;
 
 class AppExtension extends \Twig_Extension
 {
     public function getFunctions()
     {
-        return array(
-            new \Twig_SimpleFunction('link_to_origin', array($this, 'linkToOrigin')),
-        );
+        return [
+            new \Twig_SimpleFunction('link_to_origin', [$this, 'linkToOrigin']),
+        ];
     }
 
     public function linkToOrigin($package, $origin)

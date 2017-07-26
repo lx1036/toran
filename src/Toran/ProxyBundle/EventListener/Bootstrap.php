@@ -1,5 +1,6 @@
 <?php
 
+declare(strict_types=1);
 /*
  * This file is part of the Toran package.
  *
@@ -11,12 +12,11 @@
 
 namespace Toran\ProxyBundle\EventListener;
 
-use Symfony\Component\HttpKernel\Event\GetResponseEvent;
-use Twig_Environment;
-use Toran\ProxyBundle\Service\Util;
-use Composer\Util\RemoteFilesystem;
-use Composer\IO\NullIO;
 use Composer\Factory;
+use Composer\IO\NullIO;
+use Symfony\Component\HttpKernel\Event\GetResponseEvent;
+use Toran\ProxyBundle\Service\Util;
+use Twig_Environment;
 
 class Bootstrap
 {
@@ -29,41 +29,41 @@ class Bootstrap
 
     public function __construct(Util $util, $composerHome, $composerCacheDir, $cacheDir, Twig_Environment $twig, $currentVersion)
     {
-        $this->util = $util;
-        $this->composerHome = $composerHome;
+        $this->util             = $util;
+        $this->composerHome     = $composerHome;
         $this->composerCacheDir = $composerCacheDir;
-        $this->cacheDir = $cacheDir;
-        $this->twig = $twig;
-        $this->currentVersion = $currentVersion;
+        $this->cacheDir         = $cacheDir;
+        $this->twig             = $twig;
+        $this->currentVersion   = $currentVersion;
     }
 
     public function onKernelRequest(GetResponseEvent $event)
     {
-        putenv('COMPOSER_HOME='.$this->composerHome);
-        putenv('COMPOSER_CACHE_DIR='.$this->composerCacheDir);
+        putenv('COMPOSER_HOME=' . $this->composerHome);
+        putenv('COMPOSER_CACHE_DIR=' . $this->composerCacheDir);
 
-        $latestVersionCache = $this->cacheDir.'/latest_version';
-        $fetch = true;
+        $latestVersionCache = $this->cacheDir . '/latest_version';
+        $fetch              = true;
         if (file_exists($latestVersionCache)) {
             $params = explode('|', trim(file_get_contents($latestVersionCache)));
-            if (count($params) == 2 && $params[0] > date('Y-m-d H:i:s')) {
-                $fetch = false;
+            if (count($params) === 2 && $params[0] > date('Y-m-d H:i:s')) {
+                $fetch   = false;
                 $version = $params[1];
             }
         }
 
-        $product = $this->util->getProductName();
+        $product   = $this->util->getProductName();
         $expiresAt = $this->util->getExpiresAt();
-        $email = $this->util->getEmail();
+        $email     = $this->util->getEmail();
         if ($fetch) {
-            $io = new NullIO();
+            $io             = new NullIO();
             $composerConfig = Factory::createConfig();
             $io->loadConfiguration($composerConfig);
             $rfs = Factory::createRemoteFilesystem($io, $composerConfig);
 
             try {
-                $version = $rfs->getContents('toranproxy.com', 'https://toranproxy.com/version?product='.$product, false) ?: $this->currentVersion;
-                file_put_contents($latestVersionCache, date('Y-m-d H:i:s', time() + 86400).'|'.$version);
+                $version = $rfs->getContents('toranproxy.com', 'https://toranproxy.com/version?product=' . $product, false) ?: $this->currentVersion;
+                file_put_contents($latestVersionCache, date('Y-m-d H:i:s', time() + 86400) . '|' . $version);
             } catch (\Exception $e) {
                 $version = $this->currentVersion;
             }

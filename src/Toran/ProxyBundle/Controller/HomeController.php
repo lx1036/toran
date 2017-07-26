@@ -1,5 +1,6 @@
 <?php
 
+declare(strict_types=1);
 /*
  * This file is part of the Toran package.
  *
@@ -11,14 +12,14 @@
 
 namespace Toran\ProxyBundle\Controller;
 
-use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\Form\FormError;
-use Symfony\Bundle\FrameworkBundle\Controller\Controller;
-use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
-use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
-use Toran\ProxyBundle\Model\Repository;
-use Toran\ProxyBundle\Exception\LicenseExpiredException;
 use Composer\Json\JsonFile;
+use Symfony\Bundle\FrameworkBundle\Controller\Controller;
+use Symfony\Component\Form\FormError;
+use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
+use Toran\ProxyBundle\Exception\LicenseExpiredException;
+use Toran\ProxyBundle\Model\Repository;
 
 class HomeController extends Controller
 {
@@ -28,9 +29,9 @@ class HomeController extends Controller
             return $this->redirect($this->generateUrl('setup'));
         }
 
-//        var_dump($this->container->getParameter('toran_config_file'));
+        //        var_dump($this->container->getParameter('toran_config_file'));
 
-        return $this->render('ToranProxyBundle:Home:index.html.twig', array('page' => 'home', 'monorepo' => $this->get('config')->get('monorepo')));
+        return $this->render('ToranProxyBundle:Home:index.html.twig', ['page' => 'home', 'monorepo' => $this->get('config')->get('monorepo')]);
     }
 
     public function setupAction(Request $req)
@@ -43,12 +44,12 @@ class HomeController extends Controller
         if ($req->getMethod() === 'POST') {
             $form->handleRequest($req);
 
-            $data = $form->getData();
+            $data   = $form->getData();
             $config = $this->get('config');
 
-            $satis = array();
+            $satis = [];
             if (!empty($data['satis_conf'])) {
-                list($satis, $err) = $this->decodeJson($data['satis_conf']);
+                [$satis, $err] = $this->decodeJson($data['satis_conf']);
                 if ($err) {
                     $form->addError(new FormError($err));
                 }
@@ -76,29 +77,29 @@ class HomeController extends Controller
             }
         }
 
-        return $this->render('ToranProxyBundle:Home:install.html.twig', array('form' => $form->createView()));
+        return $this->render('ToranProxyBundle:Home:install.html.twig', ['form' => $form->createView()]);
     }
 
     public function postInstallAction()
     {
-        return $this->render('ToranProxyBundle:Home:post_install.html.twig', array(
-            'base_path' => dirname(realpath($this->container->getParameter('kernel.root_dir')))
-        ));
+        return $this->render('ToranProxyBundle:Home:post_install.html.twig', [
+            'base_path' => dirname(realpath($this->container->getParameter('kernel.root_dir'))),
+        ]);
     }
 
     public function docsAction($page)
     {
         $parsedown = new \Parsedown();
-        $docDir = $this->container->getParameter('kernel.root_dir').'/../doc/';
+        $docDir    = $this->container->getParameter('kernel.root_dir') . '/../doc/';
 
         if ($page === 'faq') {
-            $faqs = glob($docDir.'faq/*.md');
+            $faqs     = glob($docDir . 'faq/*.md');
             $contents = '';
             foreach ($faqs as $faq) {
-                $contents .= "\n\n".file_get_contents($faq);
+                $contents .= "\n\n" . file_get_contents($faq);
             }
         } else {
-            $file = $docDir.$page;
+            $file = $docDir . $page;
             if (!file_exists($file)) {
                 throw new NotFoundHttpException();
             }
@@ -106,46 +107,46 @@ class HomeController extends Controller
         }
 
         $contents = preg_replace('{^#}m', '##', $contents);
-        $contents = str_replace('http://toran.example.com/', $this->generateUrl('home', array(), UrlGeneratorInterface::ABSOLUTE_URL), $contents);
+        $contents = str_replace('http://toran.example.com/', $this->generateUrl('home', [], UrlGeneratorInterface::ABSOLUTE_URL), $contents);
         $contents = $parsedown->text($contents);
 
         if ($page === 'faq') {
-            $toc = array();
+            $toc      = [];
             $contents = str_replace('<h2>', '</div><div class="faq-entry"><h2>', $contents) . '</div>';
             $contents = preg_replace_callback('{("faq-entry">)(<h2>)([^<]+)}', function ($matches) use (&$toc) {
                 $toc[str_replace(' ', '-', $matches[3])] = $matches[3];
 
-                return $matches[1].'<a id="'.str_replace(' ', '-', $matches[3]).'"></a>'.$matches[2].$matches[3];
+                return $matches[1] . '<a id="' . str_replace(' ', '-', $matches[3]) . '"></a>' . $matches[2] . $matches[3];
             }, $contents);
             $contents = substr($contents, 6);
 
             $tocHtml = '<h2>Topics</h2><div class="faq-toc">';
             foreach ($toc as $link => $title) {
-                $tocHtml .= '<h2 class="toc-link"><a href="#'.$link.'">'.$title.'</a></h2>';
+                $tocHtml .= '<h2 class="toc-link"><a href="#' . $link . '">' . $title . '</a></h2>';
             }
             $tocHtml .= '</div>';
             $contents = $tocHtml . $contents;
         }
 
-        return $this->render('ToranProxyBundle:Home:docs.html.twig', array(
-            'content' => $contents,
-            'page' => 'docs',
+        return $this->render('ToranProxyBundle:Home:docs.html.twig', [
+            'content'  => $contents,
+            'page'     => 'docs',
             'doc_page' => $page,
-        ));
+        ]);
     }
 
     public function settingsAction(Request $req)
     {
-        $config = $this->get('config');
-        $builder = $this->createConfigForm($req, array(
-            'packagist_sync' => $config->get('packagist_sync'),
+        $config  = $this->get('config');
+        $builder = $this->createConfigForm($req, [
+            'packagist_sync'      => $config->get('packagist_sync'),
             'public_repositories' => implode("\n", array_map(function ($repo) { return $repo['url']; }, $config->get('public_repositories'))),
-            'dist_sync_mode' => $config->get('dist_sync_mode'),
-            'git_prefix' => $config->get('git_prefix'),
-            'git_path' => $config->get('git_path'),
-            'license' => $config->get('license'),
-            'license_personal' => $config->get('license_personal'),
-        ));
+            'dist_sync_mode'      => $config->get('dist_sync_mode'),
+            'git_prefix'          => $config->get('git_prefix'),
+            'git_path'            => $config->get('git_path'),
+            'license'             => $config->get('license'),
+            'license_personal'    => $config->get('license_personal'),
+        ]);
 
         $builder->add('Save', 'Symfony\Component\Form\Extension\Core\Type\SubmitType');
 
@@ -154,9 +155,9 @@ class HomeController extends Controller
             $form->handleRequest($req);
             $data = $form->getData();
 
-            $satis = array();
+            $satis = [];
             if (!empty($data['satis_conf'])) {
-                list($satis, $err) = $this->decodeJson($data['satis_conf']);
+                [$satis, $err] = $this->decodeJson($data['satis_conf']);
                 if ($err) {
                     $form->addError(new FormError($err));
                 }
@@ -174,7 +175,7 @@ class HomeController extends Controller
                 if (isset($satis['repositories'])) {
                     foreach ($satis['repositories'] as $repoConfig) {
                         foreach ($config->getRepositories() as $repoB) {
-                            if ($repoConfig == $repoB->config) {
+                            if ($repoConfig === $repoB->config) {
                                 continue 2;
                             }
                         }
@@ -184,7 +185,7 @@ class HomeController extends Controller
 
                 // if repos get removed we need to remove all synced packages from them as well
                 $currentRepos = $config->getPublicRepositories();
-                $packages = $config->getSyncedPackages();
+                $packages     = $config->getSyncedPackages();
                 foreach ($previousRepos as $repo) {
                     foreach ($currentRepos as $newRepo) {
                         if ($newRepo['origin'] === $repo['origin']) {
@@ -206,7 +207,7 @@ class HomeController extends Controller
             }
         }
 
-        return $this->render('ToranProxyBundle:Home:settings.html.twig', array('form' => $form->createView(), 'page' => 'settings'));
+        return $this->render('ToranProxyBundle:Home:settings.html.twig', ['form' => $form->createView(), 'page' => 'settings']);
     }
 
     protected function decodeJson($json)
@@ -219,64 +220,63 @@ class HomeController extends Controller
             $err = preg_replace("{(Parse error [^\r\n]*)\r?\n(.*)}is", '$1<pre>$2</pre>', $err);
         }
 
-        return array($data, $err);
+        return [$data, $err];
     }
 
-    protected function createConfigForm(Request $req, array $data = array())
+    protected function createConfigForm(Request $req, array $data = [])
     {
-        $data = array_merge(array(
-            'packagist_sync' => true,
+        $data = array_merge([
+            'packagist_sync'      => true,
             'public_repositories' => '',
-            'dist_sync_mode' => 'lazy',
-            'git_prefix' => '',
-            'git_path' => '',
-            'license' => '',
-        ), $data);
+            'dist_sync_mode'      => 'lazy',
+            'git_prefix'          => '',
+            'git_path'            => '',
+            'license'             => '',
+        ], $data);
         $data['packagist_sync'] = (bool) $data['packagist_sync'];
 
         $form = $this->createFormBuilder($data)
-            ->add('packagist_sync', 'Symfony\Component\Form\Extension\Core\Type\CheckboxType', array(
+            ->add('packagist_sync', 'Symfony\Component\Form\Extension\Core\Type\CheckboxType', [
                 'required' => false,
-                'label' => 'Proxy packagist.org packages - enables the Packagist proxy repository'
-            ))
-            ->add('public_repositories', 'Symfony\Component\Form\Extension\Core\Type\TextareaType', array(
+                'label'    => 'Proxy packagist.org packages - enables the Packagist proxy repository',
+            ])
+            ->add('public_repositories', 'Symfony\Component\Form\Extension\Core\Type\TextareaType', [
                 'required' => false,
-                'label' => 'Additional Composer repos to proxy (e.g. https://wpackagist.org, https://packages.firegento.com, ...) - one per line'
-            ))
-            ->add('dist_sync_mode', 'Symfony\Component\Form\Extension\Core\Type\ChoiceType', array(
+                'label'    => 'Additional Composer repos to proxy (e.g. https://wpackagist.org, https://packages.firegento.com, ...) - one per line',
+            ])
+            ->add('dist_sync_mode', 'Symfony\Component\Form\Extension\Core\Type\ChoiceType', [
                 'required' => true,
-                'choices' => array(
-                    'Lazy: every archive is built on demand when you first install a given package\'s version' => 'lazy',
+                'choices'  => [
+                    'Lazy: every archive is built on demand when you first install a given package\'s version'                    => 'lazy',
                     'New tags: tags newer than the oldest version you have used will be pre-cached as soon as they are available' => 'new',
-                    'All: all releases will be pre-cached as they become available' => 'all',
-                ),
+                    'All: all releases will be pre-cached as they become available'                                               => 'all',
+                ],
                 'choices_as_values' => true,
-                'label' => 'Which zip archives should be pre-fetched by the cron job?',
-                'expanded' => true,
-            ))
-            ->add('git_path', 'Symfony\Component\Form\Extension\Core\Type\TextType', array(
+                'label'             => 'Which zip archives should be pre-fetched by the cron job?',
+                'expanded'          => true,
+            ])
+            ->add('git_path', 'Symfony\Component\Form\Extension\Core\Type\TextType', [
                 'required' => false,
-                'label' => 'git path (where to store git clones on this machine, must be writable by the web user)',
-                'attr' => array('placeholder' => '/home/git/path/to/mirrors/'),
-            ))
-            ->add('git_prefix', 'Symfony\Component\Form\Extension\Core\Type\TextType', array(
+                'label'    => 'git path (where to store git clones on this machine, must be writable by the web user)',
+                'attr'     => ['placeholder' => '/home/git/path/to/mirrors/'],
+            ])
+            ->add('git_prefix', 'Symfony\Component\Form\Extension\Core\Type\TextType', [
                 'required' => false,
-                'label' => 'git clone url (so composer can clone your repositories, e.g. git@your.toran.proxy:path/to/mirrors/)',
-                'attr' => array('placeholder' => 'git@' . $req->server->get('HOST') . ':mirrors/'),
-            ))
-            ->add('license_personal', 'Symfony\Component\Form\Extension\Core\Type\CheckboxType', array(
+                'label'    => 'git clone url (so composer can clone your repositories, e.g. git@your.toran.proxy:path/to/mirrors/)',
+                'attr'     => ['placeholder' => 'git@' . $req->server->get('HOST') . ':mirrors/'],
+            ])
+            ->add('license_personal', 'Symfony\Component\Form\Extension\Core\Type\CheckboxType', [
                 'required' => false,
-                'label' => 'This instance is for personal use',
-            ))
-            ->add('license', 'Symfony\Component\Form\Extension\Core\Type\TextareaType', array(
+                'label'    => 'This instance is for personal use',
+            ])
+            ->add('license', 'Symfony\Component\Form\Extension\Core\Type\TextareaType', [
                 'required' => false,
-                'label' => 'License',
-            ))
-            ->add('satis_conf', 'Symfony\Component\Form\Extension\Core\Type\TextareaType', array(
+                'label'    => 'License',
+            ])
+            ->add('satis_conf', 'Symfony\Component\Form\Extension\Core\Type\TextareaType', [
                 'required' => false,
-                'attr' => array('placeholder' => '{ "repositories": [ ... ] }'),
-            ))
-        ;
+                'attr'     => ['placeholder' => '{ "repositories": [ ... ] }'],
+            ]);
 
         return $form;
     }

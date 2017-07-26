@@ -1,5 +1,6 @@
 <?php
 
+declare(strict_types=1);
 /*
  * This file is part of the Toran package.
  *
@@ -11,36 +12,34 @@
 
 namespace Toran\ProxyBundle\Controller;
 
+use Composer\Factory;
+use Composer\IO\BufferIO;
+use Composer\IO\NullIO;
+use Composer\Semver\VersionParser;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
-use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
-use Symfony\Component\HttpFoundation\BinaryFileResponse;
+use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\HttpException;
-use Composer\Downloader\FileDownloader;
-use Composer\Util\RemoteFilesystem;
-use Composer\IO\NullIO;
-use Composer\IO\BufferIO;
-use Composer\Factory;
-use Composer\Semver\VersionParser;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Toran\ProxyBundle\Service\Proxy;
 
 class ProxyController extends Controller
 {
     public function rootAction(Request $req, $repo)
     {
-        if ($repo == 'all') {
+        if ($repo === 'all') {
             return new Response('The monorepo was not initialized, you should make sure you are running bin/cron regularly', 404);
         }
 
-        if ($repo == 'private') {
+        if ($repo === 'private') {
             return $this->getUninitializedPrivateRepo();
         }
 
         try {
             foreach ($this->getPublicProxies('packagist.org') as $proxy) {
-                return new Response($proxy->getRootFile(), 200, array('Content-Type' => 'application/json'));
+                return new Response($proxy->getRootFile(), 200, ['Content-Type' => 'application/json']);
             }
         } catch (HttpException $e) {
             return new Response($e->getMessage(), $e->getStatusCode());
@@ -52,19 +51,19 @@ class ProxyController extends Controller
     public function distAction(Request $req, $repo, $name, $version, $ref, $type)
     {
         $cacheFile = null;
-        if ($repo == 'all' && in_array(strtolower($name), $this->get('config')->getPrivatePackageNames())) {
+        if ($repo === 'all' && in_array(strtolower($name), $this->get('config')->getPrivatePackageNames(), true)) {
             $repo = 'private';
         }
 
-        if ($repo == 'private') {
+        if ($repo === 'private') {
             $cacheFile = $this->get('repo_syncer')->getDistFilename($req, $name, $version, $ref, $type);
         } else {
-            $filter = 'unknown';
+            $filter   = 'unknown';
             $packages = $this->get('config')->getSyncedPackages();
             if (!empty($packages[$name])) {
                 $filter = $packages[$name];
             }
-            $io = new BufferIO;
+            $io = new BufferIO();
             foreach ($this->getPublicProxies($filter) as $proxy) {
                 if ($cacheFile = $proxy->getDistFilename($name, $version, $ref, $type, $io)) {
                     break;
@@ -90,20 +89,20 @@ class ProxyController extends Controller
             return new Response('This dist file can not be found nor downloaded from the original url' . "\n\n" . $io->getOutput(), 404);
         }
 
-        return new BinaryFileResponse($cacheFile, 200, array(), false);
+        return new BinaryFileResponse($cacheFile, 200, [], false);
     }
 
     public function providerAction($repo, $filename)
     {
-        if ($repo == 'all' && in_array(strtolower(preg_replace('{\.json$}', '', $filename)), $this->get('config')->getPrivatePackageNames())) {
+        if ($repo === 'all' && in_array(strtolower(preg_replace('{\.json$}', '', $filename)), $this->get('config')->getPrivatePackageNames(), true)) {
             $repo = 'private';
         }
 
-        if ($repo == 'private') {
+        if ($repo === 'private') {
             return $this->getUninitializedPrivateRepo();
         }
 
-        $io = new BufferIO;
+        $io = new BufferIO();
         foreach ($this->getPublicProxies() as $proxy) {
             if ($contents = $proxy->getProviderFile($filename, $io)) {
                 break;
@@ -111,14 +110,14 @@ class ProxyController extends Controller
         }
 
         if ($output = $io->getOutput()) {
-            $this->get('logger')->error('Failure while syncing '.$filename.': '.$output);
+            $this->get('logger')->error('Failure while syncing ' . $filename . ': ' . $output);
         }
 
         if (false === $contents) {
-            $data = array(
-                'packages' => array(),
-                'warning' => 'The original providers could not be fetched',
-            );
+            $data = [
+                'packages' => [],
+                'warning'  => 'The original providers could not be fetched',
+            ];
 
             return new JsonResponse($data);
             // TODO LOW would be good to just return 404, supported by new composer but not old ones
@@ -127,7 +126,7 @@ class ProxyController extends Controller
 
         $proxy->storeProviderFile($filename, $contents);
 
-        return new Response($contents, 200, array('Content-Type' => 'application/json'));
+        return new Response($contents, 200, ['Content-Type' => 'application/json']);
     }
 
     public function trackDownloadsAction(Request $req, $repo)
@@ -143,7 +142,7 @@ class ProxyController extends Controller
             return new Response('Malformed request', 400);
         }
 
-        $parser = new VersionParser;
+        $parser   = new VersionParser();
         $repoPath = $this->container->getParameter('toran_web_dir') . '/repo/private/';
         foreach ($postData['downloads'] as $package) {
             $provider = $repoPath . '/p/' . $package['name'] . '.json';
@@ -164,24 +163,24 @@ class ProxyController extends Controller
                     }
                 }
 
-                $logFile = $this->container->getParameter('kernel.logs_dir').'/downloads.'.$repo.'.log';
-                file_put_contents($logFile, date('[Y-m-d H:i:s]') . ' ' . $req->getClientIp() . ' ' . $package['name'] . ' '. $package['version'].PHP_EOL, FILE_APPEND);
+                $logFile = $this->container->getParameter('kernel.logs_dir') . '/downloads.' . $repo . '.log';
+                file_put_contents($logFile, date('[Y-m-d H:i:s]') . ' ' . $req->getClientIp() . ' ' . $package['name'] . ' ' . $package['version'] . PHP_EOL, FILE_APPEND);
             }
         }
 
-        return new JsonResponse(array('status' => 'success'), 201);
+        return new JsonResponse(['status' => 'success'], 201);
     }
 
     protected function getUninitializedPrivateRepo()
     {
         $webDir = realpath($this->container->getParameter('toran_web_dir'));
-        if (!file_exists($webDir.'/repo/private/packages.json')) {
+        if (!file_exists($webDir . '/repo/private/packages.json')) {
             return new Response('This repository was not initialized, you should make sure you are running bin/cron regularly', 404);
         }
 
         $path = $this->get('request_stack')->getCurrentRequest()->getPathInfo();
-        if (file_exists($webDir.$path)) {
-            return new Response(file_get_contents($webDir.$path), 200, array('Content-Type' => 'application/json'));
+        if (file_exists($webDir . $path)) {
+            return new Response(file_get_contents($webDir . $path), 200, ['Content-Type' => 'application/json']);
         }
 
         return new Response('This repository is missing the file you are looking for', 404);
@@ -194,10 +193,10 @@ class ProxyController extends Controller
         }
 
         $config = Factory::createConfig();
-        $io = new NullIO;
+        $io     = new NullIO();
         $io->loadConfiguration($config);
 
-        $proxies = array();
+        $proxies = [];
         foreach ($this->get('config')->getPublicRepositories() as $repo) {
             if ($originFilter && $originFilter !== $repo['origin']) {
                 continue;

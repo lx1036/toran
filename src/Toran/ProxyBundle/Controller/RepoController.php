@@ -1,5 +1,6 @@
 <?php
 
+declare(strict_types=1);
 /*
  * This file is part of the Toran package.
  *
@@ -11,32 +12,31 @@
 
 namespace Toran\ProxyBundle\Controller;
 
+use Composer\Config as ComposerConfig;
+use Composer\Factory;
+use Composer\IO\BufferIO;
+use Composer\Json\JsonFile;
+use Composer\Package\AliasPackage;
+use Composer\Package\Loader\ArrayLoader;
+use Composer\Semver\Comparator;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
+use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Component\Form\FormError;
+use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\HttpFoundation\JsonResponse;
-use Toran\ProxyBundle\Model\Repository;
-use Composer\IO\BufferIO;
-use Composer\IO\NullIO;
-use Composer\Factory;
-use Composer\Package\Loader\ArrayLoader;
-use Composer\Package\AliasPackage;
-use Composer\Semver\Comparator;
-use Composer\Config as ComposerConfig;
-use Composer\Json\JsonFile;
-use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
-use Symfony\Component\Form\FormError;
+use Toran\ProxyBundle\Model\Repository;
 
 class RepoController extends Controller
 {
-    const GITHUB_URL_RE = '{^(?:https?://|git://|ssh://)?(?:[a-zA-Z0-9_\-]+@)?(?P<host>[a-z0-9.-]+)(?::(?:\d+/)?|/)(?P<path>[\w.\-/]+?)(?:\.git|/)?$}';
+    const GITHUB_URL_RE    = '{^(?:https?://|git://|ssh://)?(?:[a-zA-Z0-9_\-]+@)?(?P<host>[a-z0-9.-]+)(?::(?:\d+/)?|/)(?P<path>[\w.\-/]+?)(?:\.git|/)?$}';
     const BITBUCKET_URL_RE = '{^(?:https?://|git://|git@)?(?:api\.)?(?P<host>bitbucket\.org)[/:](?P<path>[\w.-]+/[\w.-]+?)(\.git)?/?$}i';
-    const LOCAL_URL_RE = '{^(?:file://)?(?P<host>)(?P<path>.+)$}';
+    const LOCAL_URL_RE     = '{^(?:file://)?(?P<host>)(?P<path>.+)$}';
 
     public function indexAction()
     {
-//        var_dump(get_class($this->get('config')));
+        //        var_dump(get_class($this->get('config')));
         $repos = $this->get('config')->getRepositories();
 
         $uninitializedRepos = array_filter($repos, function ($repo) {
@@ -45,17 +45,17 @@ class RepoController extends Controller
 
         $this->initializeRepos($uninitializedRepos);
 
-        return $this->render('ToranProxyBundle:Repo:index.html.twig', array(
+        return $this->render('ToranProxyBundle:Repo:index.html.twig', [
             'repos' => $repos,
-        ));
+        ]);
     }
 
     public function createAction(Request $req)
     {
         $isJsonReq = $req->headers->get('Content-Type') === 'application/json';
-        $config = $this->get('config');
-        $repo = new Repository;
-        $builder = $this->createRepoForm($req, null, $isJsonReq ? array('csrf_protection' => false) : array());
+        $config    = $this->get('config');
+        $repo      = new Repository();
+        $builder   = $this->createRepoForm($req, null, $isJsonReq ? ['csrf_protection' => false] : []);
         $builder->add('Create', 'Symfony\Component\Form\Extension\Core\Type\SubmitType');
         $form = $builder->getForm();
 
@@ -67,13 +67,13 @@ class RepoController extends Controller
             }
 
             if ($repo = $this->processForm($form, $repo, $config)) {
-                $repoUrl = $this->generateUrl('toran_proxy_repo_view', array('id' => $repo->id, 'digest' => $repo->getDigest()), UrlGeneratorInterface::ABSOLUTE_URL);
+                $repoUrl = $this->generateUrl('toran_proxy_repo_view', ['id' => $repo->id, 'digest' => $repo->getDigest()], UrlGeneratorInterface::ABSOLUTE_URL);
 
                 if ($isJsonReq) {
                     return new JsonResponse(
-                        array('status' => 'success', 'message' => 'Package created', 'location' => $repoUrl),
+                        ['status' => 'success', 'message' => 'Package created', 'location' => $repoUrl],
                         201,
-                        array('Location' => $repoUrl)
+                        ['Location' => $repoUrl]
                     );
                 }
 
@@ -81,13 +81,13 @@ class RepoController extends Controller
             }
         }
 
-        return $this->render('ToranProxyBundle:Repo:create.html.twig', array('form' => $form->createView()));
+        return $this->render('ToranProxyBundle:Repo:create.html.twig', ['form' => $form->createView()]);
     }
 
     public function editAction(Request $req, $id, $digest)
     {
-        $config = $this->get('config');
-        $repo = $config->getRepository($id, $digest);
+        $config  = $this->get('config');
+        $repo    = $config->getRepository($id, $digest);
         $builder = $this->createRepoForm($req, $repo);
         $builder->add('Save', 'Symfony\Component\Form\Extension\Core\Type\SubmitType');
         $form = $builder->getForm();
@@ -99,7 +99,7 @@ class RepoController extends Controller
             }
         }
 
-        return $this->render('ToranProxyBundle:Repo:edit.html.twig', array('form' => $form->createView()));
+        return $this->render('ToranProxyBundle:Repo:edit.html.twig', ['form' => $form->createView()]);
     }
 
     public function updateAction(Request $req, $id, $digest)
@@ -108,11 +108,11 @@ class RepoController extends Controller
         try {
             $repo = $config->getRepository($id, $digest);
         } catch (\Exception $e) {
-            return new JsonResponse(array(
-                'status' => 'error',
+            return new JsonResponse([
+                'status'  => 'error',
                 'message' => 'Repository / package not found',
-                'details' => 'It seems you used an outdated page, try to go back to the list of private repositories'
-            ), 400);
+                'details' => 'It seems you used an outdated page, try to go back to the list of private repositories',
+            ], 400);
         }
 
         return $this->runUpdate($repo, (bool) $req->query->get('showOutput'));
@@ -127,18 +127,18 @@ class RepoController extends Controller
             return $this->redirect($this->generateUrl('toran_proxy_repo_index'));
         }
 
-        $packages = array();
-        $loader = new ArrayLoader;
+        $packages   = [];
+        $loader     = new ArrayLoader();
         $repoSyncer = $this->get('repo_syncer');
 
         if (!$repo->getNames()) {
-            return $this->render('ToranProxyBundle:Repo:view.html.twig', array('repo' => $repo, 'packages' => array(), 'error' => 'no_data'));
+            return $this->render('ToranProxyBundle:Repo:view.html.twig', ['repo' => $repo, 'packages' => [], 'error' => 'no_data']);
         }
 
         foreach ($repo->getNames() as $name) {
             $json = $repoSyncer->getJsonMetadataPath($name);
             if (!file_exists($json)) {
-                return $this->render('ToranProxyBundle:Repo:view.html.twig', array('repo' => $repo, 'packages' => array(), 'error' => 'no_data'));
+                return $this->render('ToranProxyBundle:Repo:view.html.twig', ['repo' => $repo, 'packages' => [], 'error' => 'no_data']);
             }
 
             $packageData = JsonFile::parseJson(file_get_contents($json), $json);
@@ -165,7 +165,7 @@ class RepoController extends Controller
             return -1;
         });
 
-        return $this->render('ToranProxyBundle:Repo:view.html.twig', array('repo' => $repo, 'packages' => $packages));
+        return $this->render('ToranProxyBundle:Repo:view.html.twig', ['repo' => $repo, 'packages' => $packages]);
     }
 
     public function deleteAction(Request $req, $id, $digest)
@@ -188,7 +188,7 @@ class RepoController extends Controller
     {
         $util = $this->get('toran_util');
         if ('expired' === $util->getProductName()) {
-            return new JsonResponse(array('status' => 'error', 'message' => 'Your Toran Proxy license expired and package updates now stopped working'), 500);
+            return new JsonResponse(['status' => 'error', 'message' => 'Your Toran Proxy license expired and package updates now stopped working'], 500);
         }
 
         $payload = JsonFile::parseJson($req->request->get('payload'));
@@ -197,35 +197,35 @@ class RepoController extends Controller
         }
 
         if (!$payload) {
-            return new JsonResponse(array('status' => 'error', 'message' => 'Missing payload parameter'), 406);
+            return new JsonResponse(['status' => 'error', 'message' => 'Missing payload parameter'], 406);
         }
 
         if (isset($payload['repository']['url']) && preg_match(self::GITHUB_URL_RE, $payload['repository']['url'])) { // github/gitlab/anything hook
             $urlRegex = self::GITHUB_URL_RE;
-            $url = $payload['repository']['url'];
-            $url = str_replace('https://api.github.com/repos', 'https://github.com', $url);
+            $url      = $payload['repository']['url'];
+            $url      = str_replace('https://api.github.com/repos', 'https://github.com', $url);
         } elseif (isset($payload['repository']['url'])) { // local url hook
             $urlRegex = self::LOCAL_URL_RE;
-            $url = $payload['repository']['url'];
+            $url      = $payload['repository']['url'];
         } elseif (isset($payload['repository']['links']['html']['href'])) { // new bitbucket hook
             $urlRegex = self::BITBUCKET_URL_RE;
-            $url = $payload['repository']['links']['html']['href'];
+            $url      = $payload['repository']['links']['html']['href'];
         } elseif (isset($payload['canon_url']) && isset($payload['repository']['absolute_url'])) { // bitbucket hook
             $urlRegex = self::BITBUCKET_URL_RE;
-            $url = $payload['canon_url'].$payload['repository']['absolute_url'];
+            $url      = $payload['canon_url'] . $payload['repository']['absolute_url'];
         } else {
-            return new JsonResponse(array('status' => 'error', 'message' => 'Missing or invalid payload'), 406);
+            return new JsonResponse(['status' => 'error', 'message' => 'Missing or invalid payload'], 406);
         }
 
         if (!preg_match($urlRegex, $url)) {
-            return new JsonResponse(array('status' => 'error', 'message' => 'Could not parse repository URL in payload'), 406);
+            return new JsonResponse(['status' => 'error', 'message' => 'Could not parse repository URL in payload'], 406);
         }
 
         // try to find the user package
         $repository = $this->findRepositoryByUrl($url, $urlRegex);
 
         if (!$repository) {
-            return new JsonResponse(array('status' => 'error', 'message' => 'Could not find a repository that matches this request'), 404);
+            return new JsonResponse(['status' => 'error', 'message' => 'Could not find a repository that matches this request'], 404);
         }
 
         set_time_limit(3600);
@@ -233,33 +233,7 @@ class RepoController extends Controller
         return $this->runUpdate($repository);
     }
 
-    private function runUpdate($repository, $forceReturnOutput = false)
-    {
-        $io = new BufferIO('', OutputInterface::VERBOSITY_VERBOSE);
-
-        try {
-            $repoSyncer = $this->get('repo_syncer');
-            $repoSyncer->sync($io, $this->get('config')->getRepositories(), array(), $repository);
-        } catch (\Exception $e) {
-            return new JsonResponse(array(
-                'status' => 'error',
-                'message' => '['.get_class($e).'] '.$e->getMessage(),
-                'details' => '<pre>'.$io->getOutput().'</pre>'
-            ), 400);
-        }
-
-        if ($forceReturnOutput) {
-            return new JsonResponse(array(
-                'status' => 'success',
-                'message' => 'Update successful',
-                'details' => '<pre>'.$io->getOutput().'</pre>'
-            ), 202);
-        }
-
-        return new JsonResponse(array('status' => 'success'), 202);
-    }
-
-    public function render($view, array $parameters = array(), Response $response = null)
+    public function render($view, array $parameters = [], Response $response = null)
     {
         if (!isset($parameters['page'])) {
             $parameters['page'] = 'private';
@@ -294,31 +268,30 @@ class RepoController extends Controller
         return null;
     }
 
-    protected function createRepoForm(Request $req, Repository $repo = null, $options = array())
+    protected function createRepoForm(Request $req, Repository $repo = null, $options = [])
     {
         $repo = $repo ?: new Repository();
-        $data = array(
-            'type' => $repo->type,
-            'url' => $repo->url,
+        $data = [
+            'type'    => $repo->type,
+            'url'     => $repo->url,
             'package' => isset($repo->config['package']) ? JsonFile::encode($repo->config['package']) : '',
-        );
+        ];
 
         $form = $this->createFormBuilder($data, $options)
-            ->add('type', 'Symfony\Component\Form\Extension\Core\Type\ChoiceType', array(
-                'required' => true,
-                'label' => 'Type (Use VCS for github/bitbucket/git/svn/hg repositories unless you have a good reason not to)',
-                'choices' => array('vcs' => 'vcs', 'git' => 'git', 'hg' => 'hg', 'svn' => 'svn', 'artifact' => 'artifact', 'pear' => 'pear', 'package' => 'package'),
-                'choices_as_values' => true
-            ))
-            ->add('url', 'Symfony\Component\Form\Extension\Core\Type\TextType', array(
+            ->add('type', 'Symfony\Component\Form\Extension\Core\Type\ChoiceType', [
+                'required'          => true,
+                'label'             => 'Type (Use VCS for github/bitbucket/git/svn/hg repositories unless you have a good reason not to)',
+                'choices'           => ['vcs' => 'vcs', 'git' => 'git', 'hg' => 'hg', 'svn' => 'svn', 'artifact' => 'artifact', 'pear' => 'pear', 'package' => 'package'],
+                'choices_as_values' => true,
+            ])
+            ->add('url', 'Symfony\Component\Form\Extension\Core\Type\TextType', [
                 'required' => false,
-                'label' => 'Repository URL or path (bitbucket git repositories need the trailing .git)'
-            ))
-            ->add('package', 'Symfony\Component\Form\Extension\Core\Type\TextareaType', array(
+                'label'    => 'Repository URL or path (bitbucket git repositories need the trailing .git)',
+            ])
+            ->add('package', 'Symfony\Component\Form\Extension\Core\Type\TextareaType', [
                 'required' => false,
-                'label' => 'JSON package definition (package repositories only)'
-            ))
-        ;
+                'label'    => 'JSON package definition (package repositories only)',
+            ]);
 
         return $form;
     }
@@ -332,7 +305,8 @@ class RepoController extends Controller
                 try {
                     $data['package'] = JsonFile::parseJson($data['package'], 'package');
                 } catch (\Exception $e) {
-                    $form->get('package')->addError(new FormError('<pre>'.$e->getMessage().'</pre>'));
+                    $form->get('package')->addError(new FormError('<pre>' . $e->getMessage() . '</pre>'));
+
                     return false;
                 }
             } else {
@@ -343,7 +317,7 @@ class RepoController extends Controller
 
             if (null === $repo->id) {
                 $repo->config = $data;
-                $repo = $config->addRepository($repo);
+                $repo         = $config->addRepository($repo);
             } else {
                 $config->updateRepositoryConfig($repo, $data);
             }
@@ -351,6 +325,32 @@ class RepoController extends Controller
 
             return $repo;
         }
+    }
+
+    private function runUpdate($repository, $forceReturnOutput = false)
+    {
+        $io = new BufferIO('', OutputInterface::VERBOSITY_VERBOSE);
+
+        try {
+            $repoSyncer = $this->get('repo_syncer');
+            $repoSyncer->sync($io, $this->get('config')->getRepositories(), [], $repository);
+        } catch (\Exception $e) {
+            return new JsonResponse([
+                'status'  => 'error',
+                'message' => '[' . get_class($e) . '] ' . $e->getMessage(),
+                'details' => '<pre>' . $io->getOutput() . '</pre>',
+            ], 400);
+        }
+
+        if ($forceReturnOutput) {
+            return new JsonResponse([
+                'status'  => 'success',
+                'message' => 'Update successful',
+                'details' => '<pre>' . $io->getOutput() . '</pre>',
+            ], 202);
+        }
+
+        return new JsonResponse(['status' => 'success'], 202);
     }
 
     private function initializeRepos(array $repos)
@@ -363,15 +363,15 @@ class RepoController extends Controller
 
         unset(ComposerConfig::$defaultRepositories['packagist']);
         $config = Factory::createConfig();
-        $config->merge(array('repositories' => array_map(
+        $config->merge(['repositories' => array_map(
             function ($r) { return $r->config; },
             $repos
-        )));
+        )]);
         $io = new BufferIO();
         $io->loadConfiguration($config);
 
         $composerRepos = Factory::createDefaultRepositories($io, $config);
-        $providers = array();
+        $providers     = [];
 
         $index = 0;
         foreach ($composerRepos as $url => $repo) {
@@ -381,7 +381,7 @@ class RepoController extends Controller
                 continue;
             }
 
-            $names = array();
+            $names = [];
             foreach ($packages as $package) {
                 if (!isset($names[$package->getName()])) {
                     $names[$package->getName()] = $package->getPrettyName();

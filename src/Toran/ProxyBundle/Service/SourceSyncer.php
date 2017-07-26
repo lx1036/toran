@@ -1,5 +1,6 @@
 <?php
 
+declare(strict_types=1);
 /*
  * This file is part of the Toran package.
  *
@@ -11,29 +12,24 @@
 
 namespace Toran\ProxyBundle\Service;
 
-use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
-use Composer\Package\AliasPackage;
-use Composer\Package\PackageInterface;
-use Composer\Downloader\FileDownloader;
-use Composer\Util\RemoteFilesystem;
-use Composer\Util\ProcessExecutor;
-use Composer\Util\Filesystem;
-use Composer\Util\ComposerMirror;
-use Composer\Util\Git as GitUtil;
 use Composer\Config as ComposerConfig;
 use Composer\IO\IOInterface;
-use Composer\Factory;
+use Composer\Package\AliasPackage;
+use Composer\Package\PackageInterface;
+use Composer\Util\ComposerMirror;
+use Composer\Util\Filesystem;
+use Composer\Util\Git as GitUtil;
+use Composer\Util\ProcessExecutor;
 
 class SourceSyncer
 {
     private $config;
     private $gitCacheDir;
-    private $updatedDirs = array();
+    private $updatedDirs = [];
 
     public function __construct(Configuration $config)
     {
-        $this->config = $config;
+        $this->config      = $config;
         $this->gitCacheDir = rtrim($config->get('git_path'), '/\\');
     }
 
@@ -53,7 +49,7 @@ class SourceSyncer
 
     public function removePackage(PackageInterface $package)
     {
-        $url = $package->getSourceUrl();
+        $url     = $package->getSourceUrl();
         $repoDir = null;
 
         if ($url && $package->getSourceType() === 'git') {
@@ -74,7 +70,7 @@ class SourceSyncer
 
             $process = new ProcessExecutor();
             $repoDir = ComposerMirror::processGitUrl($this->gitCacheDir . Proxy::GIT_CACHE_FORMAT, $package->getName(), $url, 'git');
-            $fs = new Filesystem();
+            $fs      = new Filesystem();
             $fs->ensureDirectoryExists(dirname($repoDir));
 
             if (!is_writable(dirname($repoDir))) {
@@ -82,10 +78,10 @@ class SourceSyncer
                 if (function_exists('posix_getpwuid') && function_exists('posix_geteuid')) {
                     $info = posix_getpwuid(posix_geteuid());
                     if (!empty($info['name'])) {
-                        $user = ' ('.$info['name'].')';
+                        $user = ' (' . $info['name'] . ')';
                     }
                 }
-                throw new \RuntimeException('Can not clone '.$url.'. The "'.dirname($repoDir).'" directory is not writable by the current user'.$user.'.');
+                throw new \RuntimeException('Can not clone ' . $url . '. The "' . dirname($repoDir) . '" directory is not writable by the current user' . $user . '.');
             }
 
             if (in_array($repoDir, $this->updatedDirs, true)) {
@@ -96,14 +92,14 @@ class SourceSyncer
             // update the repo if it is a valid git repository
             if (is_dir($repoDir) && 0 === $process->execute('git rev-parse --git-dir', $output, $repoDir) && trim($output) === '.') {
                 if (0 !== $process->execute('git remote update --prune origin', $output, $repoDir)) {
-                    $io->write('<error>'.$process->getErrorOutput().'</error>');
+                    $io->write('<error>' . $process->getErrorOutput() . '</error>');
                 }
             } else {
                 // clean up directory and do a fresh clone into it
                 $fs->removeDirectory($repoDir);
 
-                $gitUtil = new GitUtil($io, $composerConfig, $process, $fs);
-                $commandCallable = function($url) use ($repoDir) {
+                $gitUtil         = new GitUtil($io, $composerConfig, $process, $fs);
+                $commandCallable = function ($url) use ($repoDir) {
                     return sprintf('git clone --mirror %s %s', escapeshellarg($url), escapeshellarg($repoDir));
                 };
 

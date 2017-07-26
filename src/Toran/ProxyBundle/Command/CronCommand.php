@@ -1,5 +1,6 @@
 <?php
 
+declare(strict_types=1);
 /*
  * This file is part of the Toran package.
  *
@@ -11,28 +12,21 @@
 
 namespace Toran\ProxyBundle\Command;
 
-use Composer\Downloader\FileDownloader;
-use Composer\IO\IOInterface;
-use Composer\IO\ConsoleIO;
-use Composer\Package\AliasPackage;
 use Composer\Config as ComposerConfig;
-use Composer\Package\Version\VersionParser;
 use Composer\Factory;
+use Composer\IO\ConsoleIO;
+use Composer\IO\IOInterface;
 use Composer\Json\JsonFile;
-use Composer\Util\RemoteFilesystem;
-use Composer\Util\ProcessExecutor;
-use Composer\Util\Filesystem;
-use Composer\Util\ComposerMirror;
-use Toran\ProxyBundle\Service\Proxy;
-use Toran\ProxyBundle\Service\Configuration;
-use Toran\ProxyBundle\Service\Util;
-use Toran\ProxyBundle\Model\Repository;
+use Composer\Package\Version\VersionParser;
+use Symfony\Bundle\FrameworkBundle\Command\ContainerAwareCommand;
+use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\StringInput;
-use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Output\OutputInterface;
-use Symfony\Bundle\FrameworkBundle\Command\ContainerAwareCommand;
 use Symfony\Component\Filesystem\LockHandler;
+use Toran\ProxyBundle\Model\Repository;
+use Toran\ProxyBundle\Service\Proxy;
+use Toran\ProxyBundle\Service\Util;
 
 class CronCommand extends ContainerAwareCommand
 {
@@ -41,10 +35,10 @@ class CronCommand extends ContainerAwareCommand
         $this
             ->setName('toran:cron')
             ->setDescription('Runs background jobs')
-            ->setDefinition(array(
+            ->setDefinition([
                 new InputArgument('packages', InputArgument::OPTIONAL | InputArgument::IS_ARRAY, 'Package name(s) to update, optional'),
-            ))
-            ->setHelp(<<<EOT
+            ])
+            ->setHelp(<<<'EOT'
 Runs periodic background jobs of Toran Proxy
 
 Run this command with --verbose first to initialize credentials
@@ -52,52 +46,52 @@ and then set up a cron job running it every minute with
 --no-interaction
 
 EOT
-            )
-        ;
+            );
     }
 
     protected function execute(InputInterface $input, OutputInterface $output)
     {
-        $cacheDir = $this->getContainer()->getParameter('kernel.cache_dir');
+        $cacheDir  = $this->getContainer()->getParameter('kernel.cache_dir');
         $isVerbose = (bool) $input->getOption('verbose');
 
         // verify writability
-        $paths = array(
-            $cacheDir => false,
-            realpath($this->getContainer()->getParameter('toran_web_dir')).'/repo/private' => false,
-            realpath($this->getContainer()->getParameter('toran_web_dir')).'/repo/packagist' => false,
-            realpath($this->getContainer()->getParameter('toran_web_dir')).'/repo' => false,
-            $this->getContainer()->getParameter('toran_cache_dir') => false,
-            $this->getContainer()->getParameter('composer_home') => false,
-            $this->getContainer()->getParameter('composer_cache_dir') => false,
-        );
+        $paths = [
+            $cacheDir                                                                        => false,
+            realpath($this->getContainer()->getParameter('toran_web_dir')) . '/repo/private'   => false,
+            realpath($this->getContainer()->getParameter('toran_web_dir')) . '/repo/packagist' => false,
+            realpath($this->getContainer()->getParameter('toran_web_dir')) . '/repo'           => false,
+            $this->getContainer()->getParameter('toran_cache_dir')                           => false,
+            $this->getContainer()->getParameter('composer_home')                             => false,
+            $this->getContainer()->getParameter('composer_cache_dir')                        => false,
+        ];
         foreach ($paths as $path => &$unwritable) {
             $unwritable = is_dir($path) && !is_writable($path);
         }
         if ($paths = array_keys(array_filter($paths))) {
             $output->writeln('The following directories are not writable, make sure you run bin/cron with the web user and then wipe them or make sure they are owned by the web user: ' . implode(', ', $paths));
+
             return 1;
         }
 
         // init composer config on first run
-        $composerConfig = new JsonFile($this->getContainer()->getParameter('composer_home').'/config.json');
+        $composerConfig = new JsonFile($this->getContainer()->getParameter('composer_home') . '/config.json');
         if (!$composerConfig->exists()) {
             $isVerbose = true;
-            $content = array('config' => array());
+            $content   = ['config' => []];
             $composerConfig->write($content);
         }
-        $composerAuthConfig = new JsonFile($this->getContainer()->getParameter('composer_home').'/auth.json');
+        $composerAuthConfig = new JsonFile($this->getContainer()->getParameter('composer_home') . '/auth.json');
         if (!$composerAuthConfig->exists()) {
             $isVerbose = true;
             $output->writeln('You need to setup a GitHub OAuth token because Toran makes a lot of requests and will use up the API calls limit if it is unauthenticated');
             $output->writeln('Head to https://github.com/settings/tokens/new to create a token. You need to select the public_repo credentials, and the repo one if you are going to use private repositories from GitHub with Toran.');
 
             $dialog = $this->getHelperSet()->get('dialog');
-            $token = $dialog->ask($output, 'Token: ', null);
+            $token  = $dialog->ask($output, 'Token: ', null);
 
             if ($token) {
-                $content = array();
-                $content['github-oauth'] = array('github.com' => $token);
+                $content                 = [];
+                $content['github-oauth'] = ['github.com' => $token];
                 $composerAuthConfig->write($content);
             } else {
                 file_put_contents($composerAuthConfig->getPath(), '{}');
@@ -115,8 +109,9 @@ EOT
         $lock = new LockHandler('toran_cron_' . md5(__FILE__));
         if (!$lock->lock()) {
             if ($isVerbose) {
-                $output->writeln('Aborting, lock file (see '.sys_get_temp_dir().'/sf.toran_cron_*.lock) is present, a previous job is still running or may have died unexpectedly');
+                $output->writeln('Aborting, lock file (see ' . sys_get_temp_dir() . '/sf.toran_cron_*.lock) is present, a previous job is still running or may have died unexpectedly');
             }
+
             return;
         }
 
@@ -154,9 +149,9 @@ EOT
         }
 
         $config = Factory::createConfig();
-        $io = $this->createIO($input, $output);
+        $io     = $this->createIO($input, $output);
         $io->loadConfiguration($config);
-        $versionParser = new VersionParser;
+        $versionParser = new VersionParser();
 
         // sort by origin
         $packages = $toranConfig->getSyncedPackages();
@@ -200,7 +195,7 @@ EOT
                     if ($input->getOption('verbose')) {
                         throw $e;
                     }
-                    $io->write('<error>'.get_class($e).' while updating '.$package.': '.$e->getMessage().'</error>', true, IOInterface::QUIET);
+                    $io->write('<error>' . get_class($e) . ' while updating ' . $package . ': ' . $e->getMessage() . '</error>', true, IOInterface::QUIET);
                 }
             }
         }
@@ -237,7 +232,7 @@ EOT
                     continue;
                 }
 
-                $versions = Util::sortByVersion($versions);
+                $versions  = Util::sortByVersion($versions);
                 $syncDists = $distSyncMode === 'all';
 
                 foreach ($versions as $versionData) {
@@ -265,8 +260,8 @@ EOT
         $toranConfig = $this->getContainer()->get('config');
 
         $repoSyncer = $this->getContainer()->get('repo_syncer');
-        $io = $this->createIO($input, $output);
-        $repos = $toranConfig->getRepositories();
+        $io         = $this->createIO($input, $output);
+        $repos      = $toranConfig->getRepositories();
 
         $repoSyncer->sync($io, $repos, $input->getArgument('packages'));
     }
@@ -278,6 +273,7 @@ EOT
         }
 
         $output->setVerbosity(OutputInterface::VERBOSITY_QUIET);
+
         return new ConsoleIO(new StringInput(''), $output, $this->getHelperSet());
     }
 }

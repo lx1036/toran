@@ -1,5 +1,6 @@
 <?php
 
+declare(strict_types=1);
 /*
  * This file is part of the Toran package.
  *
@@ -11,21 +12,13 @@
 
 namespace Toran\ProxyBundle\Service;
 
-use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
-use Composer\Package\Loader\ArrayLoader;
-use Composer\Package\AliasPackage;
-use Composer\Downloader\FileDownloader;
-use Composer\Util\RemoteFilesystem;
-use Composer\Util\ProcessExecutor;
-use Composer\Util\Filesystem;
-use Composer\Package\PackageInterface;
-use Composer\Util\ComposerMirror;
-use Composer\Factory;
-use Composer\IO\NullIO;
-use Composer\IO\IOInterface;
-use Psr\Log\LoggerInterface;
 use Composer\Config as ComposerConfig;
+use Composer\Downloader\FileDownloader;
+use Composer\Factory;
+use Composer\IO\IOInterface;
+use Composer\IO\NullIO;
+use Psr\Log\LoggerInterface;
+use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 
 class ProxyFactory
 {
@@ -38,12 +31,12 @@ class ProxyFactory
 
     public function __construct(UrlGeneratorInterface $urlGenerator, Configuration $config, SourceSyncer $sourceSyncer, $toranWebDir, $toranCacheDir, LoggerInterface $logger = null)
     {
-        $this->urlGenerator = $urlGenerator;
-        $this->config = $config;
-        $this->sourceSyncer = $sourceSyncer;
-        $this->toranWebDir = realpath($toranWebDir);
+        $this->urlGenerator  = $urlGenerator;
+        $this->config        = $config;
+        $this->sourceSyncer  = $sourceSyncer;
+        $this->toranWebDir   = realpath($toranWebDir);
         $this->toranCacheDir = $toranCacheDir;
-        $this->logger = $logger;
+        $this->logger        = $logger;
     }
 
     public function createProxy(array $repo, IOInterface $io = null, ComposerConfig $config = null)
@@ -52,10 +45,10 @@ class ProxyFactory
             $config = Factory::createConfig();
         }
         if (!$io) {
-            $io = new NullIO;
+            $io = new NullIO();
             $io->loadConfiguration($config);
         }
-        $rfs = Factory::createRemoteFilesystem($io, $config);
+        $rfs        = Factory::createRemoteFilesystem($io, $config);
         $downloader = new FileDownloader($io, $config, null, null, $rfs);
         $downloader->setOutputProgress(false);
 
