@@ -29,7 +29,9 @@ class HomeController extends Controller
             return $this->redirect($this->generateUrl('setup'));
         }
 
-        //        var_dump($this->container->getParameter('toran_config_file'));
+        $this->get('logger')->info($this->container->getParameter('toran_config_file'));
+
+        $this->get('logger')->info(get_class($this->container));
 
         return $this->render('ToranProxyBundle:Home:index.html.twig', ['page' => 'home', 'monorepo' => $this->get('config')->get('monorepo')]);
     }

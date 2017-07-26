@@ -36,7 +36,6 @@ class RepoController extends Controller
 
     public function indexAction()
     {
-        //        var_dump(get_class($this->get('config')));
         $repos = $this->get('config')->getRepositories();
 
         $uninitializedRepos = array_filter($repos, function ($repo) {
